@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Thought Mapper</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .column {
+            flex: 1;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .thought, .todo-item {
+            background-color: #f0f0f0;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: move;
+        }
+        .cluster {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .cluster-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .color-indicator {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        .red { background-color: #ffcccb; }
+        .green { background-color: #90EE90; }
+        .blue { background-color: #ADD8E6; }
+        .productivity-indicator {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .productive { color: green; }
+        .neutral { color: gray; }
+        .unproductive { color: red; }
+        .dragging {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Enhanced Thought Mapper</h1>
+    
+    <div class="container">
+        <div class="column">
+            <h2>Thoughts and Todos</h2>
+            <div>
+                <input type="text" id="thought-input" placeholder="New thought">
+                <button onclick="addThought()">Add Thought</button>
+            </div>
+            <div>
+                <input type="text" id="todo-input" placeholder="New todo">
+                <button onclick="addTodo()">Add Todo</button>
+            </div>
+            <div id="thoughts-container"></div>
+            <div id="todos-container"></div>
+        </div>
+        
+        <div class="column">
+            <h2>Clusters</h2>
+            <div>
+                <input type="text" id="cluster-input" placeholder="New cluster">
+                <button onclick="addCluster()">Add Cluster</button>
+            </div>
+            <div id="clusters-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let thoughts = [];
+        let todos = [];
+        let clusters = [];
+        const colors = ['red', 'green', 'blue'];
+        const productivityLevels = ['productive', 'neutral', 'unproductive'];
+        let draggedItem = null;
+
+        function addThought() {
+            const input = document.getElementById('thought-input');
+            if (input.value.trim() !== '') {
+                thoughts.push({
+                    id: Date.now(),
+                    text: input.value.trim(),
+                    colorIndex: 0,
+                    type: 'thought'
+                });
+                input.value = '';
+                renderThoughts();
+            }
+        }
+
+        function addTodo() {
+            const input = document.getElementById('todo-input');
+            if (input.value.trim() !== '') {
+                todos.push({
+                    id: Date.now(),
+                    text: input.value.trim(),
+                    completed: false,
+                    productivityLevel: 'neutral',
+                    type: 'todo'
+                });
+                input.value = '';
+                renderTodos();
+            }
+        }
+
+        function addCluster() {
+            const input = document.getElementById('cluster-input');
+            if (input.value.trim() !== '') {
+                clusters.push({
+                    id: Date.now(),
+                    title: input.value.trim(),
+                    items: []
+                });
+                input.value = '';
+                renderClusters();
+            }
+        }
+
+        function renderThoughts() {
+            const container = document.getElementById('thoughts-container');
+            container.innerHTML = '<h3>Thoughts</h3>';
+            thoughts.forEach(thought => {
+                const div = document.createElement('div');
+                div.className = 'thought';
+                div.draggable = true;
+                div.innerHTML = `
+                    <span class="color-indicator ${colors[thought.colorIndex]}"></span>
+                    ${thought.text}
+                    <button onclick="changeThoughtColor(${thought.id})">Change Color</button>
+                `;
+                div.ondragstart = (e) => {
+                    draggedItem = thought;
+                    setTimeout(() => div.classList.add('dragging'), 0);
+                };
+                div.ondragend = () => div.classList.remove('dragging');
+                container.appendChild(div);
+            });
+        }
+
+        function renderTodos() {
+            const container = document.getElementById('todos-container');
+            container.innerHTML = '<h3>Todos</h3>';
+            todos.forEach(todo => {
+                const div = document.createElement('div');
+                div.className = 'todo-item';
+                div.draggable = true;
+                div.innerHTML = `
+                    <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id})">
+                    <span style="text-decoration: ${todo.completed ? 'line-through' : 'none'}">${todo.text}</span>
+                    <span class="productivity-indicator ${todo.productivityLevel}">${todo.productivityLevel}</span>
+                    <button onclick="changeProductivityLevel(${todo.id})">Change Productivity</button>
+                `;
+                div.ondragstart = (e) => {
+                    draggedItem = todo;
+                    setTimeout(() => div.classList.add('dragging'), 0);
+                };
+                div.ondragend = () => div.classList.remove('dragging');
+                container.appendChild(div);
+            });
+        }
+
+        function renderClusters() {
+            const container = document.getElementById('clusters-container');
+            container.innerHTML = '';
+            clusters.forEach(cluster => {
+                const div = document.createElement('div');
+                div.className = 'cluster';
+                div.innerHTML = `
+                    <div class="cluster-title">${cluster.title}</div>
+                    <div class="cluster-items"></div>
+                `;
+                div.ondragover = (e) => e.preventDefault();
+                div.ondrop = (e) => {
+                    e.preventDefault();
+                    if (draggedItem) {
+                        const itemIndex = draggedItem.type === 'thought' 
+                            ? thoughts.findIndex(t => t.id === draggedItem.id)
+                            : todos.findIndex(t => t.id === draggedItem.id);
+                        
+                        if (itemIndex !== -1) {
+                            if (draggedItem.type === 'thought') {
+                                cluster.items.push(thoughts.splice(itemIndex, 1)[0]);
+                            } else {
+                                cluster.items.push(todos.splice(itemIndex, 1)[0]);
+                            }
+                        } else {
+                            // Remove from other clusters if it exists
+                            clusters.forEach(c => {
+                                const clusterItemIndex = c.items.findIndex(i => i.id === draggedItem.id);
+                                if (clusterItemIndex !== -1) {
+                                    cluster.items.push(c.items.splice(clusterItemIndex, 1)[0]);
+                                }
+                            });
+                        }
+                        draggedItem = null;
+                        renderThoughts();
+                        renderTodos();
+                        renderClusters();
+                    }
+                };
+                container.appendChild(div);
+                
+                // Render items in the cluster
+                const itemsContainer = div.querySelector('.cluster-items');
+                cluster.items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = item.type === 'thought' ? 'thought' : 'todo-item';
+                    itemDiv.draggable = true;
+                    if (item.type === 'thought') {
+                        itemDiv.innerHTML = `
+                            <span class="color-indicator ${colors[item.colorIndex]}"></span>
+                            ${item.text}
+                            <button onclick="changeThoughtColor(${item.id})">Change Color</button>
+                        `;
+                    } else {
+                        itemDiv.innerHTML = `
+                            <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleTodo(${item.id})">
+                            <span style="text-decoration: ${item.completed ? 'line-through' : 'none'}">${item.text}</span>
+                            <span class="productivity-indicator ${item.productivityLevel}">${item.productivityLevel}</span>
+                            <button onclick="changeProductivityLevel(${item.id})">Change Productivity</button>
+                        `;
+                    }
+                    itemDiv.ondragstart = (e) => {
+                        draggedItem = item;
+                        setTimeout(() => itemDiv.classList.add('dragging'), 0);
+                    };
+                    itemDiv.ondragend = () => itemDiv.classList.remove('dragging');
+                    itemsContainer.appendChild(itemDiv);
+                });
+            });
+        }
+
+        function changeThoughtColor(id) {
+            const thought = thoughts.find(t => t.id === id) || clusters.flatMap(c => c.items).find(i => i.id === id && i.type === 'thought');
+            if (thought) {
+                thought.colorIndex = (thought.colorIndex + 1) % colors.length;
+                renderThoughts();
+                renderClusters();
+            }
+        }
+
+        function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id) || clusters.flatMap(c => c.items).find(i => i.id === id && i.type === 'todo');
+            if (todo) {
+                todo.completed = !todo.completed;
+                renderTodos();
+                renderClusters();
+            }
+        }
+
+        function changeProductivityLevel(id) {
+            const todo = todos.find(t => t.id === id) || clusters.flatMap(c => c.items).find(i => i.id === id && i.type === 'todo');
+            if (todo) {
+                const currentIndex = productivityLevels.indexOf(todo.productivityLevel);
+                todo.productivityLevel = productivityLevels[(currentIndex + 1) % productivityLevels.length];
+                renderTodos();
+                renderClusters();
+            }
+        }
+
+        // Initial render
+        renderThoughts();
+        renderTodos();
+        renderClusters();
+    </script>
+</body>
+</html>
